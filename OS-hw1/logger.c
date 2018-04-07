@@ -2,25 +2,25 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 typedef struct node {
   char *dir_name;
-  long int loc;
-  long int prev_loc;
+  char *prev_name;
   int dead_end;
   struct node *next;
 }node_t;
 
-void AppendNode(node_t *head, char *name, long int loc, long int prev_loc,
-        int dead_end) {
+void AppendNode(node_t *head, char *name, char *prev_name, int dead_end) {
       node_t *current = head;
       while(current->next != NULL) {
         current = current->next;
       }
       current->next = malloc(sizeof(node_t));
-      current->next->dir_name = name;
-      current->next->loc = loc;
-      current->next->prev_loc = prev_loc;
+      current->next->dir_name =  malloc(strlen(name)+1);
+      strcpy(current->next->dir_name,name);
+      current->next->prev_name = malloc(strlen(prev_name)+1);
+      strcpy(current->next->prev_name,prev_name);
       current->next->dead_end = dead_end;
       current->next->next = NULL;
     }
@@ -28,19 +28,17 @@ void AppendNode(node_t *head, char *name, long int loc, long int prev_loc,
 void RemoveList(node_t *head) {
   node_t *current = head;
   node_t *temp=head;
-  while(current->next != NULL) {
+  while(current != NULL) {
     temp = current->next;
     free(current);
     current=temp;
   }
-  free(temp);
-  free(current);
 }
 
-int SearchList(node_t *head, long int loc) {
+int SearchList(node_t *head, char *name, char *prev_name) {
   node_t *current = head;
   while(current->next != NULL) {
-    if(current->loc == loc)
+    if((current->dir_name == name) && (current->prev_name==prev_name))
       return 1;
     else
       current = current->next;
@@ -48,105 +46,94 @@ int SearchList(node_t *head, long int loc) {
   return 0;
 }
 
-node_t FindNode(node_t *head, long int loc) {
-  node_t *current = head;
-  while(current->next != NULL) {
-    if(current->loc == loc)
-      return current;
-    else
-      current = current->next;
-  }
-  return NULL;
-}
-
 void PrintList(node_t *head) {
   node_t *current = head;
   while(current !=NULL) {
     printf("Name: %s\n", current->dir_name);
-    printf("Location: %ld\n", current->loc);
-    printf("")
+    printf("Prev_Name: %s\n", current->prev_name);
+    printf("Deadend?? %d\n\n\n", current->dead_end);
+    current=current->next;
+  }
+}
+
+void recursive(node_t **head, char *directory, char *additional) {
+  int dead_end=0;
+  char *new_name;
+  char *dir_name,*test_direct;
+  char *prev_name;
+  struct dirent *dir, *temp_dir;
+  DIR *d;
+  d = opendir(directory);
+  if(d) { //if d is a correct directory
+      while((dir=readdir(d)) != NULL) {
+        if(strcmp(dir->d_name, ".")==0 || strcmp(dir->d_name, "..")==0) {
+          continue;
+        }
+        dir_name = dir->d_name;
+        if(additional==NULL) {
+          test_direct = malloc(strlen(dir_name)+2);
+          strcpy(test_direct,dir_name);
+        }
+        else {
+          test_direct = malloc(strlen(additional)+strlen(dir_name)+2);
+          strcpy(test_direct,additional);
+          strcat(test_direct,"/");
+          strcat(test_direct,dir_name);
+        }
+        new_name = malloc(strlen(directory)+strlen(dir_name)+2);
+        strcpy(new_name,directory);
+        strcat(new_name,"/");
+        strcat(new_name,dir_name);
+        if(dir->d_type != DT_DIR){ //We have encountered a deadend go back.
+          printf("New Name: %s\n",new_name);
+          printf("dir_name: %s\n", dir_name);
+          printf("prev_name: %s\n", prev_name);
+          AppendNode(*head,dir_name,test_direct,dead_end);
+          free(new_name);
+          free(test_direct);
+        }
+        else {
+          recursive(head, new_name, test_direct);
+          free(new_name);
+          free(test_direct);
+        }
+      }
+      closedir(d);//END OF WHILE
+  } //end of if(d)
+  else {
+    printf("Please Enter a Correct Directory\n");
+    RemoveList(*head);
+    exit(0);
   }
 }
 
 int main(int argc, char *argv[]) {
   if(argc!=2) {
-    printf("Please enter the testing directory as argument");
+    printf("Please enter the testing directory as argument\n");
     exit(0);
   }
-  const char *test_directory;
-  DIR *d;
+  char buffer[1024];
+  char *test_directory;
+  char *addit = NULL;
   //Create the head of our list.
   node_t *head = NULL;
-  head = malloc(sizeof(node_t));
-  head->dir_name="Parent";
-  head->loc=0;
-  head->prev_loc=0;
-  head->next=NULL;
-  node_t *temp_node;
-  long int loc = 0;
-  long int prev_loc = 0;
-  int count=0;
-  int dead_end=0;
-  struct dirent *dir, *temp_dir;
+  int opened_in_wb=0;
   test_directory = argv[1];
-  d = opendir(test_directory);
-  if(d) { //if d is a correct directory
-    while((dir=readdir(d)) != NULL) { //To find the entry count in the main directory
-      if(strcmp(dir->d_name, ".") && strcmp(dir->d_name, "..")) {
-        count++;
-      }
+  head = malloc(sizeof(node_t));
+  head->dir_name=test_directory;
+  head->prev_name=test_directory;
+  head->dead_end=0;
+  head->next=NULL;
+  recursive(&head,test_directory,addit);
+  PrintList(head); /*
+  FILE *fp = fopen("test.list","a+");
+  fgets(buffer,1024,(FILE*)fp);
+  if(strlen(buffer)!=0) {
+    if(strcmp(buffer,"2030005")) {
+      fgets(buffer,1024,(FILE*)fp);
+      if(buffer,
     }
-    if(count==0) {
-      printf("Empty Directory.\n");
-    }
-    rewinddir(d); //Start over
-    while(1) {
-      if((dir=readdir(d)) != NULL) {
-        loc = telldir(d);
-        if(SearchLish(loc)) {
-          continue;
-        }
-        else {
-          seekdir(d,loc);
-          if((temp_dir=readdir(d)) != NULL) {
-            dead_end=0;
-          }
-          else {
-            dead_end=1;
-          }
-          AppendNode(head,dir->d_name,loc,prev_loc,dead_end);
-          if(dead_end==0) {
-            prev_loc=loc;
-            seekdir(d,loc);
-          }
-          else { //We have encountered a deadend go back.
-            seekdir(d,prev_loc);
-          }
-        }
-      }//END OF if(dir=readdir(d) != NULL)
-      else {
-        temp_node = FindNode(head,prev_loc);
-        if(temp_node->prev_loc != 0){
-          temp_node = FindNode(head,prev_loc);
-          prev_loc = temp_node->prev_loc;
-          //If the previous node is not the parent just go back.
-        }
-        else { //If it is the parent, then rewind and decrement count
-          prev_loc = 0;
-          rewind(d);
-          count--;
-          if(count==0)
-            break;
-        }
-      }
-    }
-  } //end of if(d)
-  else {
-    printf("Please Enter a Correct Directory");
-    RemoveList(head);
-    exit(0);
-  }
-  closedir(d);
+  }*/
   RemoveList(head);
   return(0);
 }
