@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 typedef struct node {
   char *dir_name;
@@ -85,9 +86,6 @@ void recursive(node_t **head, char *directory, char *additional) {
         strcat(new_name,"/");
         strcat(new_name,dir_name);
         if(dir->d_type != DT_DIR){ //We have encountered a deadend go back.
-          printf("New Name: %s\n",new_name);
-          printf("dir_name: %s\n", dir_name);
-          printf("prev_name: %s\n", prev_name);
           AppendNode(*head,dir_name,test_direct,dead_end);
           free(new_name);
           free(test_direct);
@@ -115,25 +113,69 @@ int main(int argc, char *argv[]) {
   char buffer[1024];
   char *test_directory;
   char *addit = NULL;
+  char *real_path,*file_path;
+  char actual_path[1024];
+  char file_name[255];
   //Create the head of our list.
   node_t *head = NULL;
+  node_t *current;
   int opened_in_wb=0;
+  int continuing=0;
   test_directory = argv[1];
+  int i = strlen(test_directory)-1;
+  int j = 0;
+  while(*(test_directory+i)!='/') {
+    i--;
+  }
+  while(i<strlen(test_directory)) {
+    file_name[j] = *(test_directory+i+1);
+    i++;
+    j++;
+  }
+  strcat(file_name,".list");
   head = malloc(sizeof(node_t));
   head->dir_name=test_directory;
   head->prev_name=test_directory;
   head->dead_end=0;
   head->next=NULL;
   recursive(&head,test_directory,addit);
-  PrintList(head); /*
-  FILE *fp = fopen("test.list","a+");
+  getcwd(actual_path,sizeof(actual_path));
+  sprintf(actual_path,"%s/%s\n",actual_path,(test_directory+2));
+  FILE *fp = fopen(file_name,"a+");
   fgets(buffer,1024,(FILE*)fp);
+  buffer[strlen(buffer)-1] = 0;
   if(strlen(buffer)!=0) {
-    if(strcmp(buffer,"2030005")) {
+    if(strcmp(buffer,"2030005")==0) {
       fgets(buffer,1024,(FILE*)fp);
-      if(buffer,
+      if(strcmp(buffer,actual_path)==0) {
+        continuing=1;
+      }
+      else{
+        fclose(fp);
+        remove(file_name);
+        fp = fopen(file_name,"w+");
+      }
     }
-  }*/
+    else {
+      fclose(fp);
+      remove(file_name);
+      fp = fopen(file_name,"w+");
+    }
+  }
+  if(continuing==1) {
+    fputs("\n",fp);
+  }
+  else {
+    fputs("2030005\n", fp);
+    fputs(actual_path,fp);
+    fputs("\n",fp);
+  }
+  current = head->next;
+  while(current!=NULL) {
+    fputs(current->prev_name,fp);
+    fputs("\n",fp);
+    current = current->next;
+  }
   RemoveList(head);
   return(0);
 }
