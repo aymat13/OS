@@ -14,7 +14,7 @@ void QueueInsert(queue_t *main_queue, int number) {
     *(main_queue->memory + (main_queue->current_size) - 1) = number;
     (main_queue->current_size)++;
   } else {
-    printf("Error: Inserting a FULL Queue!\n");
+    printf("Error: Inserting to a FULL Queue!\n");
   }
 }
 
@@ -32,6 +32,5 @@ int QueueRemove(queue_t *main_queue) {
 }
 
 void QueueDestroy(queue_t *main_queue) {
-  free(main_queue->memory);
   free(main_queue);
 }
