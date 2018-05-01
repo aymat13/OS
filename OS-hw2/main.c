@@ -6,7 +6,10 @@
 #include <getopt.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <semaphore.h>
+
+sem_t mutex;
 
 int isnumber(char *string) {
   int i = 0;
@@ -18,13 +21,14 @@ int isnumber(char *string) {
   return 1;
 }
 
-void *printDivisors(queue_t *main_queue) {
+void *printDivisors(void *main_queue_ptr) {
+  queue_t *main_queue = (queue_t *) main_queue_ptr;
   int number;
-  //mutex(down);
+  sem_wait(&mutex);
   while(main_queue->current_size != 0) {
     number = QueueRemove(main_queue);
-    //mutex(up);
-    //sleep(0.1~1sec);
+    sem_post(&mutex);
+    nanosleep(((((rand()%10)+1) * 100000000) - 1),NULL);
     printf("Number: %d, Divisors: ", number);
     for(int i=1;i<=number;i++) {
       if(number%i == 0) {
@@ -32,23 +36,28 @@ void *printDivisors(queue_t *main_queue) {
       }
     }
     printf("\n");
-    //mutex(down);
+    sem_wait(&mutex);
   }
-  //mutex(up);
+  sem_post(&mutex);
 }
 
-void *Generator(queue_t *main_queue, int rand_count, int rand_range) {
+void *Generator(queue_t *main_queue, void *rand_count_ptr_void, void *rand_range_ptr_void) {
+  int *rand_count_ptr = (int *) rand_count_ptr_void;
+  int *rand_range_ptr = (int *) rand_range_ptr_void;
+  int rand_count = *rand_count_ptr;
+  int rand_range = *rand_range_ptr;
   int rdm_number=0;
   int i = 0;
   while(i<rand_count) {
     rdm_number = rand() % (rand_range+1);
-    //mutex(down);
-    if(QueueInsert(main_queue,rdm_number))
-    //mutex(up);
+    sem_wait(&mutex);
+    if(QueueInsert(main_queue,rdm_number)){
+    sem_post(&mutex);
       i++;
-    else
-    //mutex(up);
+    } else {
+    sem_post(&mutex);
       continue;
+    }
   }
 }
 
@@ -107,29 +116,20 @@ int main(int argc, char **argv) {
   if (q!= NULL)  max_size = atoi(q);
   if (r!= NULL) rand_count = atoi(r);
   if (m!= NULL) rand_range = atoi(m);
-
+  int j = 0;
+  sem_init(&mutex,0,1);
+  pthread_t thread_gen;
+  pthread_t *thread_work = malloc(sizeof(pthread_t) * thread_count);
   queue_t *main_queue = malloc(sizeof(queue_t));
-  Generator(main_queue,rand_count,rand_range);
-  QueueInitialize(main_queue, 5);
-  printf("Insert: %d\n", QueueInsert(main_queue, 18));
-  printf("Insert: %d\n", QueueInsert(main_queue, 11));
-  printf("Insert: %d\n", QueueInsert(main_queue, 17));
-  printf("Insert: %d\n", QueueInsert(main_queue, 777));
-  printf("Insert: %d\n", QueueInsert(main_queue, 121));
-  printf("Insert: %d\n", QueueInsert(main_queue, 666));
-  for(int i=0; i<3; i++) {
-    printf ("Size: %d, ", main_queue->current_size);
-    int temp = QueueRemove(main_queue);
-    printf("Number: %d\n", temp);
+  QueueInitialize(main_queue, max_size);
+  pthread_create(&thread_gen,NULL,Generator,(void*)main_queue,(void*)&rand_count,(void*)&rand_range);
+  while(j<thread_count) {
+    pthread_create(&(thread_work[j]),NULL,printDivisors,(void*)main_queue);
+    j++;
   }
-  printf("Insert: %d\n", QueueInsert(main_queue, 13));
-  printf("Insert: %d\n", QueueInsert(main_queue, 14));
-  printf("Insert: %d\n", QueueInsert(main_queue, 15));
-  for(int i=0; i<8; i++) {
-    printf ("Size: %d, ", main_queue->current_size);
-    int temp = QueueRemove(main_queue);
-    printf("Number: %d\n", temp);
-  }
+
+  //Generator(main_queue,rand_count,rand_range);
   QueueDestroy(main_queue);
+  free(thread_work);
   return 0;
 }
