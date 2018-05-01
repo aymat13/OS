@@ -5,6 +5,8 @@
 #include "queue.h"
 #include <getopt.h>
 #include <string.h>
+#include <pthread.h>
+#include <semaphore.h>
 
 int isnumber(char *string) {
   int i = 0;
@@ -16,17 +18,39 @@ int isnumber(char *string) {
   return 1;
 }
 
-int printDivisors(int number) {
-  printf("Number: %d, Divisors: ", number);
-  for(int i=1;i<=number;i++) {
-    if(number%i == 0) {
-      printf("%d ", i);
+void *printDivisors(queue_t *main_queue) {
+  int number;
+  //mutex(down);
+  while(main_queue->current_size != 0) {
+    number = QueueRemove(main_queue);
+    //mutex(up);
+    //sleep(0.1~1sec);
+    printf("Number: %d, Divisors: ", number);
+    for(int i=1;i<=number;i++) {
+      if(number%i == 0) {
+        printf("%d ", i);
+      }
     }
+    printf("\n");
+    //mutex(down);
   }
-  printf("\n");
+  //mutex(up);
 }
 
-
+void *Generator(queue_t *main_queue, int rand_count, int rand_range) {
+  int rdm_number=0;
+  int i = 0;
+  while(i<rand_count) {
+    rdm_number = rand() % (rand_range+1);
+    //mutex(down);
+    if(QueueInsert(main_queue,rdm_number))
+    //mutex(up);
+      i++;
+    else
+    //mutex(up);
+      continue;
+  }
+}
 
 int main(int argc, char **argv) {
   char * t = NULL;
@@ -85,6 +109,7 @@ int main(int argc, char **argv) {
   if (m!= NULL) rand_range = atoi(m);
 
   queue_t *main_queue = malloc(sizeof(queue_t));
+  Generator(main_queue,rand_count,rand_range);
   QueueInitialize(main_queue, 5);
   printf("Insert: %d\n", QueueInsert(main_queue, 18));
   printf("Insert: %d\n", QueueInsert(main_queue, 11));
