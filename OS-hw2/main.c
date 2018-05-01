@@ -26,6 +26,8 @@ int printDivisors(int number) {
   printf("\n");
 }
 
+
+
 int main(int argc, char **argv) {
   char * t = NULL;
   char * q = NULL;
@@ -84,13 +86,21 @@ int main(int argc, char **argv) {
 
   queue_t *main_queue = malloc(sizeof(queue_t));
   QueueInitialize(main_queue, 5);
-  QueueInsert(main_queue, 18);
-  QueueInsert(main_queue, 11);
-  QueueInsert(main_queue, 13);
-  QueueInsert(main_queue, 51);
-  QueueInsert(main_queue, 777);
-  QueueInsert(main_queue, 121);
-  for(int i=0; i<6; i++) {
+  printf("Insert: %d\n", QueueInsert(main_queue, 18));
+  printf("Insert: %d\n", QueueInsert(main_queue, 11));
+  printf("Insert: %d\n", QueueInsert(main_queue, 17));
+  printf("Insert: %d\n", QueueInsert(main_queue, 777));
+  printf("Insert: %d\n", QueueInsert(main_queue, 121));
+  printf("Insert: %d\n", QueueInsert(main_queue, 666));
+  for(int i=0; i<3; i++) {
+    printf ("Size: %d, ", main_queue->current_size);
+    int temp = QueueRemove(main_queue);
+    printf("Number: %d\n", temp);
+  }
+  printf("Insert: %d\n", QueueInsert(main_queue, 13));
+  printf("Insert: %d\n", QueueInsert(main_queue, 14));
+  printf("Insert: %d\n", QueueInsert(main_queue, 15));
+  for(int i=0; i<8; i++) {
     printf ("Size: %d, ", main_queue->current_size);
     int temp = QueueRemove(main_queue);
     printf("Number: %d\n", temp);
