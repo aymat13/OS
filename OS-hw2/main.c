@@ -11,6 +11,7 @@
 #include <time.h>
 
 sem_t mutex;
+sem_t print_mutex;
 
 struct thread_args {
   queue_t *main_queue;
@@ -31,22 +32,23 @@ int isnumber(char *string) {
 void *printDivisors(void *main_queue_ptr) {
   queue_t *main_queue = (queue_t *) main_queue_ptr;
   int number;
-  int tid = pthread_self();
+  unsigned int tid = pthread_self();
   sem_wait(&mutex);
+  //while(1) {
   while(main_queue->current_size != 0) {
     number = QueueRemove(main_queue);
     sem_post(&mutex);
-    const struct timespec *req = (const struct timespec *) ((((rand()%10)+1) * 100000000) - 1);
-    nanosleep(req,NULL);
-    sem_wait(&mutex);
-    printf("Thread ID: %d, Number: %d, Divisors: ", tid, number);
+    unsigned int usecs = (((rand()%10)+1) * 100000);
+    usleep(usecs);
+    sem_wait(&print_mutex);
+    printf("Thread ID: %u, Number: %d, Divisors: ", tid, number);
     for(int i=1;i<=number;i++) {
       if(number%i == 0) {
         printf("%d ", i);
       }
     }
     printf("\n");
-    sem_post(&mutex);
+    sem_post(&print_mutex);
     sem_wait(&mutex);
   }
   sem_post(&mutex);
@@ -62,13 +64,11 @@ void *Generator(void *ptr) {
   while(i<rand_count) {
     rdm_number = rand() % (rand_range+1);
     sem_wait(&mutex);
-    printf("Inserting: %d\n", rdm_number);
     if(QueueInsert(main_queue,rdm_number)){
-    sem_post(&mutex);
+      sem_post(&mutex);
       i++;
     } else {
     sem_post(&mutex);
-      continue;
     }
   }
 }
@@ -130,6 +130,7 @@ int main(int argc, char **argv) {
   if (m!= NULL) rand_range = atoi(m);
   int j = 0;
   sem_init(&mutex,0,1);
+  sem_init(&print_mutex,0,1);
   pthread_t thread_gen;
   pthread_t *thread_work = malloc(sizeof(pthread_t) * thread_count);
   queue_t *main_queue = malloc(sizeof(queue_t));
@@ -143,8 +144,12 @@ int main(int argc, char **argv) {
     pthread_create(&(thread_work[j]),NULL,printDivisors,(void*)main_queue);
     j++;
   }
+  j = 0;
+  for(j=0;j<thread_count;j++) {
+    pthread_join(thread_work[j],NULL);
+  }
+  pthread_join(thread_gen,NULL);
 
-  //Generator(main_queue,rand_count,rand_range);
   QueueDestroy(main_queue);
   free(thread_work);
   free(ptr);
