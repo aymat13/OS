@@ -5,8 +5,24 @@
 #include <ucontext.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <signal.h>
 
-#define SLEEP_AMNT 100000
+#define SLEEP_AMOUNT 100000
+#define STACK_SIZE 64000
+#define READY 0
+#define RUNNING 1
+#define FINISHED 2
+#define EMPTY 3
+
+typedef struct ThreadInfo {
+  ucontext_t context;
+  int state;
+}threadinfo_t;
+
+threadinfo_t global_array[5];
+int next_index = 1;
+int prev_index = 1;
+int no_more_args = 0;
 
 int isnumber(char *string) {
   int i = 0;
@@ -18,14 +34,62 @@ int isnumber(char *string) {
   return 1;
 }
 
-void worker_funct(int n, int ID) {
+void worker_funct(int n, int ID, int index) {
   int i;
-  unsigned int usecs = SLEEP_AMNT;
+  unsigned int usecs = SLEEP_AMOUNT;
   for(i = 0;i<n;i++) {
     printf("Thread #%d -> %d\n", ID, i);
     usleep(usecs);
   }
   printf("\n");
+  global_array[index].state = FINISHED;
+  alarm(0);
+  raise(SIGALRM);
+}
+
+int scheduler() {
+  int empty_count=0;
+  if(no_more_args!=1) {
+    for(int i=1;i<5;i++) {
+      if(global_array[i].state == EMPTY) {
+        swapcontext(&(global_array[prev_index].context),&(global_array[0].context));
+        return 0;
+      }
+    }
+  } else {
+    for(int i=1;i<5;i++) {
+      if(global_array[i].state == EMPTY) {
+        empty_count++;
+      }
+    }
+    if(empty_count == 4) exit(3);
+  }
+  //If prev_thread is finished then free its stack and make its space empty.
+  if(global_array[prev_index].state == FINISHED) {
+    free(global_array[prev_index].context.uc_stack.ss_sp);
+    global_array[prev_index].state == EMPTY;
+  } //If it is not finished just make it ready.
+  else if(global_array[prev_index].state == RUNNING) {
+    global_array[prev_index].state = READY;
+  }
+  int k;
+  for(k=1;k<5;k++) { //Search for next available thread to switch
+    if(global_array[next_index].state == READY)
+      break; //After finding the first next ready thread index, break from loop.
+    else {
+      if(next_index!=4) next_index++; //Otherwise go through the whole array.
+      else next_index = 1;
+    }
+  }
+  if(k==5 && no_more_args==1) exit(4); //If Above loop could not found any READY
+  //thread and there are no more threads to be scheduled then exit.
+  else if(k==5 && no_more_args==0) next_index = 0; //If there are threads -->
+  //to be scheduled go to the main function to schedule them.
+
+  global_array[next_index].state = RUNNING;
+  swapcontext(&(global_array[prev_index].context),&(global_array[next_index].context));
+  prev_index = next_index;
+  alarm(1);
 }
 
 int main(int argc, char** argv) {
@@ -45,7 +109,39 @@ int main(int argc, char** argv) {
     if(argv[i]!=NULL) entered_numbers[i-1] = atoi(argv[i]);
     else break;
   }
-  worker_funct(entered_numbers[0],1);
-  worker_funct(entered_numbers[1],2);
+
+  signal (SIGALRM, (void (*)(int))scheduler);
+
+  int j=1;
+  while(argc!=1) {
+    for(int i=1;i<5;i++) {
+      if(global_array[i].state == EMPTY) {
+        getcontext(&(global_array[i].context));
+        global_array[i].context.uc_link = 0;
+        global_array[i].context.uc_stack.ss_sp = malloc(STACK_SIZE);
+        global_array[i].context.uc_stack.ss_size = STACK_SIZE;
+        global_array[i].context.uc_stack.ss_flags = 0;
+        makecontext(&(global_array[i].context), (void (*)(void))worker_funct,
+          3, entered_numbers[j],j,i);
+        global_array[i].state = READY;
+        argc--;
+        j++;
+      }
+    }
+    prev_index = 0;
+    alarm(0);
+    getcontext(&(global_array[0].context));
+    global_array[0].state = 5;
+    raise(SIGALRM);
+  }
+  no_more_args = 1;
   free(entered_numbers);
+  prev_index = 0;
+  alarm(0);
+  getcontext(&(global_array[0].context));
+  global_array[0].state = 5;
+  raise(SIGALRM);
+  while(1) {
+
+  }
 }
