@@ -20,7 +20,7 @@ typedef struct ThreadInfo {
 }threadinfo_t;
 
 threadinfo_t global_array[5];
-int next_index = 1;
+int next_index = 0;
 int prev_index = 1;
 int no_more_args = 0;
 
@@ -48,7 +48,9 @@ void worker_funct(int n, int ID, int index) {
 }
 
 int scheduler() {
+  alarm(1);
   int empty_count=0;
+  int temp_index;
   if(no_more_args!=1) {
     for(int i=1;i<5;i++) {
       if(global_array[i].state == EMPTY) {
@@ -62,16 +64,23 @@ int scheduler() {
         empty_count++;
       }
     }
-    if(empty_count == 4) exit(3);
+    if(empty_count == 4) {
+      printf("3. cikis\n");
+      exit(3);
+    }
   }
   //If prev_thread is finished then free its stack and make its space empty.
   if(global_array[prev_index].state == FINISHED) {
+    printf("Is finished? \n");
     free(global_array[prev_index].context.uc_stack.ss_sp);
     global_array[prev_index].state == EMPTY;
   } //If it is not finished just make it ready.
   else if(global_array[prev_index].state == RUNNING) {
+    printf("Or was it running?\n");
     global_array[prev_index].state = READY;
   }
+  if(next_index == 4) next_index = 1;
+  else next_index++;
   int k;
   for(k=1;k<5;k++) { //Search for next available thread to switch
     if(global_array[next_index].state == READY)
@@ -81,15 +90,22 @@ int scheduler() {
       else next_index = 1;
     }
   }
-  if(k==5 && no_more_args==1) exit(4); //If Above loop could not found any READY
+  if(k==5 && no_more_args==1) {
+    printf("4. cikis\n");
+    exit(4); //If Above loop could not found any READY
+  }
   //thread and there are no more threads to be scheduled then exit.
   else if(k==5 && no_more_args==0) next_index = 0; //If there are threads -->
   //to be scheduled go to the main function to schedule them.
 
-  global_array[next_index].state = RUNNING;
-  swapcontext(&(global_array[prev_index].context),&(global_array[next_index].context));
+  printf("Prev_index: %d\n", prev_index);
+  printf("Next_index: %d\n", next_index);
+
+  temp_index = prev_index;
   prev_index = next_index;
-  alarm(1);
+  global_array[next_index].state = RUNNING;
+  swapcontext(&(global_array[temp_index].context),&(global_array[next_index].context));
+  prev_index = next_index;
 }
 
 int main(int argc, char** argv) {
@@ -111,6 +127,9 @@ int main(int argc, char** argv) {
   }
 
   signal (SIGALRM, (void (*)(int))scheduler);
+  for(int i=0;i<5;i++) {
+    global_array[i].state = EMPTY;
+  }
 
   int j=1;
   while(argc!=1) {
@@ -122,7 +141,7 @@ int main(int argc, char** argv) {
         global_array[i].context.uc_stack.ss_size = STACK_SIZE;
         global_array[i].context.uc_stack.ss_flags = 0;
         makecontext(&(global_array[i].context), (void (*)(void))worker_funct,
-          3, entered_numbers[j],j,i);
+          3, entered_numbers[j-1],j,i);
         global_array[i].state = READY;
         argc--;
         j++;
@@ -132,7 +151,9 @@ int main(int argc, char** argv) {
     alarm(0);
     getcontext(&(global_array[0].context));
     global_array[0].state = 5;
+    printf("kek\n");
     raise(SIGALRM);
+    printf("lel\n");
   }
   no_more_args = 1;
   free(entered_numbers);
