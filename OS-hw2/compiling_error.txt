@@ -1,12 +1,10 @@
-/tmp/cceuix36.o: In function `main':
-main.c:(.text+0x77): undefined reference to `QueueInitialize'
-main.c:(.text+0x88): undefined reference to `QueueInsert'
-main.c:(.text+0x99): undefined reference to `QueueInsert'
-main.c:(.text+0xaa): undefined reference to `QueueInsert'
-main.c:(.text+0xbb): undefined reference to `QueueInsert'
-main.c:(.text+0xcc): undefined reference to `QueueInsert'
-/tmp/cceuix36.o:main.c:(.text+0xdd): more undefined references to `QueueInsert' follow
-/tmp/cceuix36.o: In function `main':
-main.c:(.text+0xf2): undefined reference to `QueueRemove'
-main.c:(.text+0x11f): undefined reference to `QueueDestroy'
-collect2: error: ld returned 1 exit status
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0x8b): undefined reference to `QueueInitialize'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0x9f): undefined reference to `QueueInsert'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0xb3): undefined reference to `QueueInsert'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0xc7): undefined reference to `QueueInsert'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0xdb): undefined reference to `QueueInsert'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0xef): undefined reference to `QueueInsert'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0x103): more undefined references to `QueueInsert' follow
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0x130): undefined reference to `QueueRemove'
+C:\Users\AHMETS~1\AppData\Local\Temp\ccAoMYHp.o:main.c:(.text+0x160): undefined reference to `QueueDestroy'
+collect2.exe: error: ld returned 1 exit status
