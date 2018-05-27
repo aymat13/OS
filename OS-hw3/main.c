@@ -39,9 +39,8 @@ void worker_funct(int n, int ID, int index) {
   unsigned int usecs = SLEEP_AMOUNT;
   for(i = 0;i<n;i++) {
     printf("Thread #%d -> %d\n", ID, i);
-    usleep(usecs);
+    if(i!=(n-1)) usleep(usecs);
   }
-  printf("\n");
   global_array[index].state = FINISHED;
   alarm(0);
   raise(SIGALRM);
@@ -51,11 +50,19 @@ int scheduler() {
   alarm(1);
   int empty_count=0;
   int temp_index;
-  if(no_more_args!=1) {
+  //If prev_thread is finished then free its stack and make its space empty.
+  if(global_array[prev_index].state == FINISHED) {
+    free(global_array[prev_index].context.uc_stack.ss_sp);
+    global_array[prev_index].state = EMPTY;
+  } //If it is not finished just make it ready.
+  else if(global_array[prev_index].state == RUNNING) {
+    global_array[prev_index].state = READY;
+  }
+
+  if(!no_more_args) {
     for(int i=1;i<5;i++) {
       if(global_array[i].state == EMPTY) {
         swapcontext(&(global_array[prev_index].context),&(global_array[0].context));
-        return 0;
       }
     }
   } else {
@@ -65,19 +72,8 @@ int scheduler() {
       }
     }
     if(empty_count == 4) {
-      printf("3. cikis\n");
       exit(3);
     }
-  }
-  //If prev_thread is finished then free its stack and make its space empty.
-  if(global_array[prev_index].state == FINISHED) {
-    printf("Is finished? \n");
-    free(global_array[prev_index].context.uc_stack.ss_sp);
-    global_array[prev_index].state == EMPTY;
-  } //If it is not finished just make it ready.
-  else if(global_array[prev_index].state == RUNNING) {
-    printf("Or was it running?\n");
-    global_array[prev_index].state = READY;
   }
   if(next_index == 4) next_index = 1;
   else next_index++;
@@ -91,19 +87,16 @@ int scheduler() {
     }
   }
   if(k==5 && no_more_args==1) {
-    printf("4. cikis\n");
     exit(4); //If Above loop could not found any READY
   }
   //thread and there are no more threads to be scheduled then exit.
   else if(k==5 && no_more_args==0) next_index = 0; //If there are threads -->
   //to be scheduled go to the main function to schedule them.
 
-  printf("Prev_index: %d\n", prev_index);
-  printf("Next_index: %d\n", next_index);
-
   temp_index = prev_index;
   prev_index = next_index;
   global_array[next_index].state = RUNNING;
+  printf("\n");
   swapcontext(&(global_array[temp_index].context),&(global_array[next_index].context));
   prev_index = next_index;
 }
@@ -134,7 +127,7 @@ int main(int argc, char** argv) {
   int j=1;
   while(argc!=1) {
     for(int i=1;i<5;i++) {
-      if(global_array[i].state == EMPTY) {
+      if(global_array[i].state == EMPTY && argc!=1) {
         getcontext(&(global_array[i].context));
         global_array[i].context.uc_link = 0;
         global_array[i].context.uc_stack.ss_sp = malloc(STACK_SIZE);
@@ -151,10 +144,9 @@ int main(int argc, char** argv) {
     alarm(0);
     getcontext(&(global_array[0].context));
     global_array[0].state = 5;
-    printf("kek\n");
     raise(SIGALRM);
-    printf("lel\n");
   }
+  
   no_more_args = 1;
   free(entered_numbers);
   prev_index = 0;
